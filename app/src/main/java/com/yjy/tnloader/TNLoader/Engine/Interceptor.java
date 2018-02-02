@@ -10,12 +10,18 @@ import java.io.IOException;
  */
 
 public interface Interceptor {
-    Response intercept(Chain chain) throws IOException;
+    Response intercept(Chain chain);
 
     interface Chain {
+
+        void interceptor(Chain chain);
+
         Request request();
 
-        Response proceed(Request request) throws IOException;
+        Response proceed(Request request);
+
+        Response getResponse();
+
 
     }
 }

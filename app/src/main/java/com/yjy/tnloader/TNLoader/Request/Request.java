@@ -4,10 +4,35 @@ package com.yjy.tnloader.TNLoader.Request;
  * Created by software1 on 2018/1/30.
  */
 
+import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
+import com.yjy.tnloader.TNLoader.Resource.RequestKey;
+import com.yjy.tnloader.TNLoader.Resource.Resource;
+
 /**
  * A request that loads a resource for an {@link }.
  */
 public interface Request {
+
+    /***
+     * key of request**/
+    RequestKey key();
+
+    /**is MemoryCache open*/
+    boolean isMemoryCache();
+
+    /**资源刷新*/
+    void onResourceReady(Resource<?> resource);
+
+    /***磁盘策略**/
+    DiskCacheStrategy getDiskStrategy();
+
+    /**是否存在key对应的磁盘缓存*/
+    boolean hasKeyResource();
+
+    void setKeyResource(boolean hasKey);
+
+    String url();
+
 
     /**
      * Starts an asynchronous load.

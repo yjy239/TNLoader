@@ -11,6 +11,7 @@ import com.yjy.tnloader.TNLoader.Cache.DisCache.InternalCacheDiskCacheFactory;
 import com.yjy.tnloader.TNLoader.Cache.LruResourceCache;
 import com.yjy.tnloader.TNLoader.Cache.MemoryCache;
 import com.yjy.tnloader.TNLoader.Cache.MemorySizeCalculator;
+import com.yjy.tnloader.TNLoader.Engine.Dispatcher;
 import com.yjy.tnloader.TNLoader.Engine.Engine;
 import com.yjy.tnloader.TNLoader.Engine.executor.FifoPriorityThreadPoolExecutor;
 
@@ -29,6 +30,7 @@ public class TNBuilder {
     private ExecutorService sourceService;
     private ExecutorService diskCacheService;
     private DiskCache.Factory diskCacheFactory;
+    private Dispatcher dispatcher;
     
     public TNBuilder(Context context) {
         this.context = context.getApplicationContext();
@@ -63,9 +65,12 @@ public class TNBuilder {
             diskCacheFactory = new InternalCacheDiskCacheFactory(context);
         }
 
-        engine = new Engine();
+        dispatcher = new Dispatcher();
+
+        engine = new Engine(context,dispatcher,memoryCache,diskCacheFactory,diskCacheService,sourceService);
 
 
-        return null;
+
+        return new TNLoader(engine,memoryCache,bitmapPool,context);
     }
 }

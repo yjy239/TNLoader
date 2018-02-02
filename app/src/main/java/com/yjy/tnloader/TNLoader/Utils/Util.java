@@ -6,6 +6,7 @@ import android.os.Build;
 import android.os.Looper;
 
 import com.yjy.tnloader.TNLoader.Cache.Poolable;
+import com.yjy.tnloader.TNLoader.Request.Target;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -139,5 +140,16 @@ public class Util {
             hexChars[j * 2 + 1] = HEX_CHAR_ARRAY[v & 0x0F];
         }
         return new String(hexChars);
+    }
+
+    /**
+     * Returns true if width and height are both > 0 and/or equal to {@link Target#SIZE_ORIGINAL}.
+     */
+    public static boolean isValidDimensions(int width, int height) {
+        return isValidDimension(width) && isValidDimension(height);
+    }
+
+    private static boolean isValidDimension(int dimen) {
+        return dimen > 0 || dimen == Target.SIZE_ORIGINAL;
     }
 }

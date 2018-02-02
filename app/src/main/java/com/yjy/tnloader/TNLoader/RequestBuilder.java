@@ -3,8 +3,10 @@ package com.yjy.tnloader.TNLoader;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
+import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
 import com.yjy.tnloader.TNLoader.Request.GenericRequest;
 import com.yjy.tnloader.TNLoader.Request.ImageViewTarget;
+import com.yjy.tnloader.TNLoader.Request.Priority;
 import com.yjy.tnloader.TNLoader.Request.Request;
 import com.yjy.tnloader.TNLoader.Request.Target;
 import com.yjy.tnloader.TNLoader.manager.Lifecycle;
@@ -26,17 +28,24 @@ public class RequestBuilder {
     private int overrideHeight;
     private Drawable errorPlaceholder;
     private Drawable placeholderDrawable;
+    private DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.RESULT;
+    private boolean isMemoryCacheable;
+    private TNLoader loader;
+    private Priority priority = Priority.NORMAL;
 
 
-    public RequestBuilder(String url, Lifecycle lifecycle, RequestTracker requestTracker){
+
+    public RequestBuilder(TNLoader loader,String url, Lifecycle lifecycle, RequestTracker requestTracker){
         mUrl = url;
         this.mLifecycle = lifecycle;
+        this.requestTracker= requestTracker;
+        this.loader = loader;
     }
 
-    public GenericRequest build(){
+    public GenericRequest build(Target target){
 
-        return GenericRequest.obtain(placeholderResourceId,errorResourceId,sizeMultiplier,
-                overrideWidth,overrideHeight);
+        return GenericRequest.obtain(mUrl,target,placeholderResourceId,placeholderDrawable,errorResourceId,sizeMultiplier,
+                overrideWidth,overrideHeight,loader.getEngine(),isMemoryCacheable,diskCacheStrategy,priority);
     }
 
 
@@ -104,7 +113,7 @@ public class RequestBuilder {
             previous.recycle();
         }
 
-        Request request = build();
+        Request request = build(target);
         target.setRequest(request);
         mLifecycle.addListener(target);
         requestTracker.runRequest(request);

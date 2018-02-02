@@ -132,6 +132,10 @@ public class TNLoader {
         bitmapPool.trimMemory(level);
     }
 
+    public Engine getEngine(){
+        return engine;
+    }
+
 
 
 

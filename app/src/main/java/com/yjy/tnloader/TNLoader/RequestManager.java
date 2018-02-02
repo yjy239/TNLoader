@@ -80,7 +80,7 @@ public class RequestManager implements LifecycleListener {
     /***
      * load from url**/
     public RequestBuilder load(String url){
-        return new RequestBuilder(url,lifecycle,requestTracker);
+        return new RequestBuilder(loader,url,lifecycle,requestTracker);
     }
 
 
