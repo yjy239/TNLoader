@@ -1,32 +1,36 @@
 package com.yjy.tnloader.TNLoader.Request;
 
 import android.graphics.drawable.Drawable;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.util.Log;
 
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
 import com.yjy.tnloader.TNLoader.Engine.Engine;
+import com.yjy.tnloader.TNLoader.Resource.DecodeFormat;
 import com.yjy.tnloader.TNLoader.Resource.EmptySignature;
 import com.yjy.tnloader.TNLoader.Resource.Key;
 import com.yjy.tnloader.TNLoader.Resource.RequestKey;
 import com.yjy.tnloader.TNLoader.Resource.Resource;
 import com.yjy.tnloader.TNLoader.Utils.Util;
 
+import java.io.InputStream;
 import java.util.Queue;
 
 /**
  * Created by software1 on 2018/1/31.
  */
 
-public class GenericRequest<R> implements Request,SizeReadyCallback{
-
+public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCallback{
 
     private final String TAG = "GenericRequest";
 
     private int placeholderResourceId;
     private int errorResourceId;
     private float sizeMultiplier;
-    private int overrideWidth;
-    private int overrideHeight;
+    private int overrideWidth = Integer.MAX_VALUE;
+    private int overrideHeight = Integer.MAX_VALUE;
     private static final Queue<GenericRequest> REQUEST_POOL = Util.createQueue(0);
     private Status status;
     private Target target;
@@ -40,18 +44,26 @@ public class GenericRequest<R> implements Request,SizeReadyCallback{
     private boolean hasKey = false;
     private Priority priority;
     private EmptySignature signature = EmptySignature.obtain();
+    private DecodeFormat format = DecodeFormat.DEFAULT;
+    private Resource<?> resource;
+    private static final int MSG_COMPLETE = 1;
+    private static final int MSG_EXCEPTION = 2;
+    private Handler MAIN_HANDLER  = new Handler(Looper.getMainLooper(),new MainThreadCallback());
+    private InputStream in;
+
+
 
 
     public static GenericRequest obtain(String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,float sizeMultiplier,
                                         int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,
-                                        DiskCacheStrategy diskCacheStrategy,Priority priority){
+                                        DiskCacheStrategy diskCacheStrategy,Priority priority,DecodeFormat format){
         GenericRequest request =  REQUEST_POOL.poll();
         if(request == null){
             request = new GenericRequest();
         }
 
         request.init(url,target,placeholderResourceId,placeholderDrawable,errorResourceId,sizeMultiplier,
-        overrideWidth,overrideHeight,engine,isMemoryCacheable,diskCacheStrategy,priority);
+        overrideWidth,overrideHeight,engine,isMemoryCacheable,diskCacheStrategy,priority,format);
         return request;
 
     }
@@ -81,7 +93,8 @@ public class GenericRequest<R> implements Request,SizeReadyCallback{
     }
 
     public void init(String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,float sizeMultiplier,
-                     int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,DiskCacheStrategy diskCacheStrategy,Priority priority){
+                     int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,DiskCacheStrategy diskCacheStrategy,Priority priority,
+                     DecodeFormat format){
         this.placeholderResourceId = placeholderResourceId;
         this.errorResourceId = errorResourceId;
         this.sizeMultiplier = sizeMultiplier;
@@ -94,6 +107,7 @@ public class GenericRequest<R> implements Request,SizeReadyCallback{
         this.diskCacheStrategy = diskCacheStrategy;
         this.url = url;
         this.priority = priority;
+        this.format = format;
         this.key = new RequestKey(url,signature,overrideWidth,overrideHeight);
 
         status = Status.PENDING;
@@ -133,19 +147,14 @@ public class GenericRequest<R> implements Request,SizeReadyCallback{
         width = Math.round(sizeMultiplier * width);
         height = Math.round(sizeMultiplier * height);
         //拦截器启动
-        engine.load(width, height, diskCacheStrategy,this,priority);
+        engine.load(width, height, diskCacheStrategy,this,priority,this);
 
     }
 
     @Override
     public void onResourceReady(Resource<?> resource) {
-        if (resource == null) {
-            return;
-        }
 
-        Object received = resource.get();
-
-        onResourceReady(resource, (R) received);
+        MAIN_HANDLER.obtainMessage(MSG_COMPLETE,resource).sendToTarget();
 
     }
 
@@ -167,6 +176,46 @@ public class GenericRequest<R> implements Request,SizeReadyCallback{
     @Override
     public String url() {
         return url;
+    }
+
+    @Override
+    public int getWidth() {
+        return overrideWidth;
+    }
+
+    @Override
+    public int getHeight() {
+        return overrideHeight;
+    }
+
+    @Override
+    public DecodeFormat getFormat() {
+        return format;
+    }
+
+    @Override
+    public Resource<?> resultResource() {
+        return resource;
+    }
+
+    @Override
+    public void setResource(Resource<?> resource) {
+        this.resource = resource;
+    }
+
+    @Override
+    public InputStream in() {
+        return in;
+    }
+
+    @Override
+    public void setInputStream(InputStream in) {
+        this.in = in;
+    }
+
+    @Override
+    public void onException(Exception e) {
+
     }
 
 
@@ -226,10 +275,39 @@ public class GenericRequest<R> implements Request,SizeReadyCallback{
         return isMemoryCacheable;
     }
 
+    private class MainThreadCallback implements Handler.Callback {
+
+        @Override
+        public boolean handleMessage(Message message) {
+            if (MSG_COMPLETE == message.what || MSG_EXCEPTION == message.what) {
+                if (MSG_COMPLETE == message.what) {
+                    if(message.obj instanceof Resource){
+                        Resource<?> resource = (Resource<?>) message.obj;
+                        if (resource == null) {
+                            return false;
+                        }
+                        Object received = resource.get();
+                        onResourceReady(resource, (R) received);
+                    }
+                } else {
+
+                }
+                return true;
+            }
+
+            return false;
+        }
+    }
+
     @Override
     public void recycle() {
         this.target = null;
         this.placeholderDrawable = null;
+        in = null;
+        resource = null;
+        isMemoryCacheable = false;
+        key = null;
+
         REQUEST_POOL.offer(this);
     }
 }

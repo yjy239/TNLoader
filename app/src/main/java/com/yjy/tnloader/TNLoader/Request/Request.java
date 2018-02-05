@@ -5,8 +5,11 @@ package com.yjy.tnloader.TNLoader.Request;
  */
 
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
+import com.yjy.tnloader.TNLoader.Resource.DecodeFormat;
 import com.yjy.tnloader.TNLoader.Resource.RequestKey;
 import com.yjy.tnloader.TNLoader.Resource.Resource;
+
+import java.io.InputStream;
 
 /**
  * A request that loads a resource for an {@link }.
@@ -29,9 +32,26 @@ public interface Request {
     /**是否存在key对应的磁盘缓存*/
     boolean hasKeyResource();
 
+
     void setKeyResource(boolean hasKey);
 
     String url();
+
+    /**获取宽高**/
+    int getWidth();
+    int getHeight();
+
+    /**获取解码**/
+    DecodeFormat getFormat();
+
+    /**获取转化后的资源*/
+    Resource<?> resultResource();
+
+    void setResource(Resource<?> resource);
+
+    InputStream in();
+    void setInputStream(InputStream in);
+
 
 
     /**

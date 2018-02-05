@@ -1,13 +1,13 @@
 package com.yjy.tnloader.TNLoader.Engine;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
+import com.yjy.tnloader.TNLoader.Cache.BitmapPool.BitmapPool;
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCache;
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
-import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskLruCacheFactory;
-import com.yjy.tnloader.TNLoader.Cache.DisCache.InternalCacheDiskCacheFactory;
-import com.yjy.tnloader.TNLoader.Cache.DiskCacheCallback;
 import com.yjy.tnloader.TNLoader.Engine.RequestHandler.AssetRequestHandler;
 import com.yjy.tnloader.TNLoader.Engine.RequestHandler.ContactsPhotoRequestHandler;
 import com.yjy.tnloader.TNLoader.Engine.RequestHandler.NetworkRequestHandler;
@@ -22,13 +22,10 @@ import com.yjy.tnloader.TNLoader.Engine.interceptor.RealInterceptorChain;
 import com.yjy.tnloader.TNLoader.Engine.interceptor.StreamInterceptor;
 import com.yjy.tnloader.TNLoader.Request.Priority;
 import com.yjy.tnloader.TNLoader.Request.Request;
-import com.yjy.tnloader.TNLoader.Resource.Key;
+import com.yjy.tnloader.TNLoader.Request.ResourceCallback;
+import com.yjy.tnloader.TNLoader.Request.Response;
 import com.yjy.tnloader.TNLoader.Resource.Resource;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -40,7 +37,6 @@ import java.util.List;
 public class DecodeJob  implements Runnable, Prioritized {
 
     private volatile boolean isCancelled = false;
-    private Stage stage = Stage.CACHE;
     private final String TAG = "DecodeJob";
     private DiskCacheStrategy diskCacheStrategy;
     private DiskCache diskCache;
@@ -53,10 +49,13 @@ public class DecodeJob  implements Runnable, Prioritized {
     private Engine engine;
     private Context context;
     private Priority priority;
+    private BitmapPool bitmapPool;
+    private ResourceCallback callback;
 
 
-    public DecodeJob(Context context,Engine engine,DiskCache diskCache, DiskCacheStrategy diskCacheStrategy,
-                     int width, int height,Request request,List<Interceptor> interceptors,Priority priority){
+    public DecodeJob(Context context, Engine engine, DiskCache diskCache, DiskCacheStrategy diskCacheStrategy,
+                     int width, int height, Request request, List<Interceptor> interceptors, Priority priority, BitmapPool bitmapPool,
+                     ResourceCallback callback){
         this.diskCacheStrategy = diskCacheStrategy;
         this.diskCache = diskCache;
         this.width = width;
@@ -66,14 +65,13 @@ public class DecodeJob  implements Runnable, Prioritized {
         this.engine = engine;
         this.context = context;
         this.priority = priority;
+        this.bitmapPool = bitmapPool;
+        this.callback = callback;
         handlers.add(new AssetRequestHandler(context));
         handlers.add(new ContactsPhotoRequestHandler(context));
         handlers.add(new NetworkRequestHandler());
         handlers.add(new ResourceRequestHandler());
     }
-
-
-
 
     public void cancel() {
         isCancelled = true;
@@ -86,16 +84,40 @@ public class DecodeJob  implements Runnable, Prioritized {
             return;
         }
 
-        interceptors.add(new MemoryCacheInterceptor(engine));
+        interceptors.add(new MemoryCacheInterceptor(engine,bitmapPool));
         interceptors.add(new DiskCacheInterceptor(diskCache));
         interceptors.add(new StreamInterceptor(getHandler(request)));
-        interceptors.add(new DecodeInterceptor());
+        interceptors.add(new DecodeInterceptor(bitmapPool));
         interceptors.add(new BitmapTransformInterceptor());
 
         Log.e(TAG,"拦截器启动");
         Response response = new Response.Builder().request(request).build();
         RealInterceptorChain chain = new RealInterceptorChain(interceptors,index,response);
-        Response r = chain.proceed(request);
+        Response result = chain.proceed(request);
+        Resource<?> resource = result.getResult();
+
+        //repsonse就有了bitmap,这个时候，回调设置
+        if (isCancelled) {
+            if (resource != null) {
+                resource.recycle();
+            }
+            return;
+        }
+
+        if(result == null){
+            onLoadFail();
+        }else {
+            onLoadSuccess(resource);
+        }
+
+    }
+
+    private void onLoadSuccess(Resource<?> resource) {
+        callback.onResourceReady(resource);
+    }
+
+    private void onLoadFail() {
+
 
     }
 
@@ -114,11 +136,4 @@ public class DecodeJob  implements Runnable, Prioritized {
         return priority.ordinal();
     }
 
-
-    private enum Stage {
-        /** Attempting to decode resource from cache. */
-        CACHE,
-        /** Attempting to decode resource from source data. */
-        SOURCE
-    }
 }

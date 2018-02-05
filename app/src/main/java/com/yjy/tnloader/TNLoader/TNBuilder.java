@@ -67,7 +67,7 @@ public class TNBuilder {
 
         dispatcher = new Dispatcher();
 
-        engine = new Engine(context,dispatcher,memoryCache,diskCacheFactory,diskCacheService,sourceService);
+        engine = new Engine(context,dispatcher,memoryCache,diskCacheFactory,diskCacheService,sourceService,bitmapPool);
 
 
 
