@@ -9,6 +9,7 @@ import com.yjy.tnloader.TNLoader.Request.ImageViewTarget;
 import com.yjy.tnloader.TNLoader.Request.Priority;
 import com.yjy.tnloader.TNLoader.Request.Request;
 import com.yjy.tnloader.TNLoader.Request.Target;
+import com.yjy.tnloader.TNLoader.Resource.DecodeFormat;
 import com.yjy.tnloader.TNLoader.manager.Lifecycle;
 import com.yjy.tnloader.TNLoader.manager.RequestTracker;
 
@@ -24,14 +25,15 @@ public class RequestBuilder {
     private int placeholderResourceId;
     private int errorResourceId;
     private float sizeMultiplier;
-    private int overrideWidth;
-    private int overrideHeight;
     private Drawable errorPlaceholder;
     private Drawable placeholderDrawable;
     private DiskCacheStrategy diskCacheStrategy = DiskCacheStrategy.RESULT;
     private boolean isMemoryCacheable;
     private TNLoader loader;
     private Priority priority = Priority.NORMAL;
+    private DecodeFormat decodeFormat;
+    private int overrideWidth = Integer.MAX_VALUE;
+    private int overrideHeight = Integer.MAX_VALUE;
 
 
 
@@ -45,7 +47,7 @@ public class RequestBuilder {
     public GenericRequest build(Target target){
 
         return GenericRequest.obtain(mUrl,target,placeholderResourceId,placeholderDrawable,errorResourceId,sizeMultiplier,
-                overrideWidth,overrideHeight,loader.getEngine(),isMemoryCacheable,diskCacheStrategy,priority);
+                overrideWidth,overrideHeight,loader.getEngine(),isMemoryCacheable,diskCacheStrategy,priority,decodeFormat);
     }
 
 
@@ -99,6 +101,11 @@ public class RequestBuilder {
             Drawable drawable) {
         this.placeholderDrawable = drawable;
 
+        return this;
+    }
+
+    public RequestBuilder deformat(DecodeFormat format){
+        this.decodeFormat = format;
         return this;
     }
 

@@ -18,7 +18,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         view = (ImageView)findViewById(R.id.img);
         TNLoader.with(this)
-                .load("111")
+                .load("http://img.taopic.com/uploads/allimg/120727/201995-120HG1030762.jpg")
                 .into(view);
 
     }

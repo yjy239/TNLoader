@@ -7,6 +7,7 @@ import android.os.Message;
 import android.os.MessageQueue;
 import android.util.Log;
 
+import com.yjy.tnloader.TNLoader.Cache.BitmapPool.BitmapPool;
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCache;
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
 import com.yjy.tnloader.TNLoader.Cache.MemoryCache;
@@ -18,6 +19,7 @@ import com.yjy.tnloader.TNLoader.Engine.interceptor.StreamInterceptor;
 import com.yjy.tnloader.TNLoader.Engine.interceptor.RealInterceptorChain;
 import com.yjy.tnloader.TNLoader.Request.Priority;
 import com.yjy.tnloader.TNLoader.Request.Request;
+import com.yjy.tnloader.TNLoader.Request.ResourceCallback;
 import com.yjy.tnloader.TNLoader.Resource.RequestKey;
 import com.yjy.tnloader.TNLoader.Resource.RequestResource;
 import com.yjy.tnloader.TNLoader.Resource.Key;
@@ -49,29 +51,19 @@ public class Engine implements MemoryCacheCallBack{
     private ReferenceQueue<RequestResource<?>> resourceReferenceQueue;
     private ResourceRecycler recycler;
     private Context context;
-
     private volatile int working = 0;
-
-    private Handler engineHandler = new Handler(){
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what){
-                case LOADFROMCACHE:
-                    break;
-
-            }
-        }
-    };
+    private BitmapPool bitmapPool;
 
 
     public Engine(Context context, Dispatcher dispatcher, MemoryCache memoryCache, DiskCache.Factory diskCacheFactory,
-                  ExecutorService diskCacheService, ExecutorService sourceService) {
+                  ExecutorService diskCacheService, ExecutorService sourceService,BitmapPool bitmapPool) {
         this.dispatcher = dispatcher;
         this.memoryCache = memoryCache;
         this.diskCacheFactory = diskCacheFactory;
         this.diskCacheService = diskCacheService;
         this.sourceService = sourceService;
         this.context = context;
+        this.bitmapPool = bitmapPool;
         activeResources = new HashMap<>();
 
         if(recycler == null){
@@ -79,12 +71,10 @@ public class Engine implements MemoryCacheCallBack{
         }
     }
 
-    public void load(int width, int height, DiskCacheStrategy diskCacheStrategy, Request request, Priority priority) {
+    public void load(int width, int height, DiskCacheStrategy diskCacheStrategy, Request request, Priority priority, ResourceCallback callback) {
 
-        int index = 0;
         DiskCache diskCache = diskCacheFactory.build();
-
-        DecodeJob decodeJob = new DecodeJob(context,this,diskCache,diskCacheStrategy,width,height,request,interceptors,priority);
+        DecodeJob decodeJob = new DecodeJob(context,this,diskCache,diskCacheStrategy,width,height,request,interceptors,priority,bitmapPool,callback);
         sourceService.submit(decodeJob);
 
     }
@@ -112,6 +102,7 @@ public class Engine implements MemoryCacheCallBack{
             activeResources.put(key, new ResourceWeakReference(key, cached, getReferenceQueue()));
         }
         working--;
+        notifyAll();
         return cached;
     }
 
@@ -164,6 +155,7 @@ public class Engine implements MemoryCacheCallBack{
             }
         }
         working--;
+        notifyAll();
         return active;
     }
 
@@ -198,4 +190,5 @@ public class Engine implements MemoryCacheCallBack{
             return true;
         }
     }
+
 }
