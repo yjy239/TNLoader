@@ -37,15 +37,19 @@ public class MemoryCacheInterceptor implements Interceptor {
         //判断缓存是否存在
         RequestResource<?> cached = engine.loadFromCache(request.key(),request.isMemoryCache());
         if(cached != null){
+            Log.e(TAG,"内存缓存");
             r = new Response.Builder().request(request).result(cached).build();
             request.onResourceReady(cached);
+            return r;
         }
 
         //获取活跃的资源是否存在
         RequestResource<?> active = engine.loadFromActiveResources(request.key(),request.isMemoryCache());
         if (active != null) {
+            Log.e(TAG,"活跃内存缓存");
             r = new Response.Builder().request(request).result(active).build();
             request.onResourceReady(active);
+            return r;
         }
         //两者不存在进入下一个拦截器，并且加入到缓存中
         if(cached == null && active == null){

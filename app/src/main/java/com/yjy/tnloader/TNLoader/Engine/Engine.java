@@ -31,9 +31,12 @@ import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+
+import static android.os.Looper.myQueue;
 
 /**
  * Created by software1 on 2018/1/30.
@@ -54,6 +57,9 @@ public class Engine implements MemoryCacheCallBack,RequestResource.ResourceListe
     private Context context;
     private volatile int working = 0;
     private BitmapPool bitmapPool;
+    private final int MSG_PUT = 0;
+    private Handler MAIN_HANDLER = new Handler(Looper.getMainLooper(),new MainThreadCallback());
+    private HashMap<Map<Key, WeakReference<RequestResource<?>>>,ReferenceQueue<RequestResource<?>>> sendObj = new HashMap<>();
 
 
 
@@ -102,12 +108,16 @@ public class Engine implements MemoryCacheCallBack,RequestResource.ResourceListe
 
         if (cached != null) {
             cached.acquire();
+
+            //放置活跃资源的时候切一次线程,把资源挂在在主线程，也需要在主线程空闲的时候，把不需要的资源释放掉，而且，放到主线程，Looper将不会持有该线程对象
+            //好回收
             activeResources.put(key, new ResourceWeakReference(key, cached, getReferenceQueue()));
         }
         working--;
         notifyAll();
         return cached;
     }
+
 
     private RequestResource<?> getEngineResourceFromCache(Key key) {
         Resource<?> cached = memoryCache.remove(key);
@@ -126,11 +136,11 @@ public class Engine implements MemoryCacheCallBack,RequestResource.ResourceListe
 
     private ReferenceQueue<RequestResource<?>> getReferenceQueue() {
         if (resourceReferenceQueue == null) {
-            Looper.prepare();
             resourceReferenceQueue = new ReferenceQueue<RequestResource<?>>();
-            MessageQueue queue = Looper.myQueue();
-            queue.addIdleHandler(new RefQueueIdleHandler(activeResources, resourceReferenceQueue));
-//            Looper.loop();
+            sendObj.put(activeResources,resourceReferenceQueue);
+            MAIN_HANDLER.obtainMessage(MSG_PUT,sendObj).sendToTarget();
+//            MessageQueue queue = Looper.myQueue();
+//            queue.addIdleHandler(new RefQueueIdleHandler(activeResources, resourceReferenceQueue));
         }
         return resourceReferenceQueue;
     }
@@ -242,5 +252,29 @@ public class Engine implements MemoryCacheCallBack,RequestResource.ResourceListe
             return true;
         }
     }
+
+    public class MainThreadCallback implements Handler.Callback{
+
+        @Override
+        public boolean handleMessage(Message msg) {
+            switch (msg.what){
+                case MSG_PUT:
+                    if(msg.obj instanceof  HashMap){
+                        HashMap<Map<Key, WeakReference<RequestResource<?>>>,ReferenceQueue<RequestResource<?>>> map = (HashMap) msg.obj;
+                        Iterator<Map.Entry<Map<Key, WeakReference<RequestResource<?>>>,ReferenceQueue<RequestResource<?>>>> entry = map.entrySet().iterator();
+                        while (entry.hasNext()){
+                            Map.Entry<Map<Key, WeakReference<RequestResource<?>>>,ReferenceQueue<RequestResource<?>>> item = entry.next();
+                            MessageQueue queue = Looper.myQueue();
+                            queue.addIdleHandler(new RefQueueIdleHandler(item.getKey(), item.getValue()));
+                            Log.e(TAG,"PUT");
+                        }
+                    }
+
+                    break;
+            }
+            return false;
+        }
+    }
+
 
 }
