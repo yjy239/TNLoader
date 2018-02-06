@@ -51,11 +51,17 @@ public class DecodeJob  implements Runnable, Prioritized {
     private Priority priority;
     private BitmapPool bitmapPool;
     private ResourceCallback callback;
+    private List<Interceptor> customInterceptor;
+    private Interceptor customMemoryCache;
+    private Interceptor customDiskCache;
+    private Interceptor customNetWork;
 
 
     public DecodeJob(Context context, Engine engine, DiskCache diskCache, DiskCacheStrategy diskCacheStrategy,
                      int width, int height, Request request, List<Interceptor> interceptors, Priority priority, BitmapPool bitmapPool,
-                     ResourceCallback callback){
+                     ResourceCallback callback,Interceptor customMemoryCache,
+                     Interceptor customDiskCache,Interceptor customNetWork,List<Interceptor> customInterceptor,
+                     List<RequestHandler> customHandler){
         this.diskCacheStrategy = diskCacheStrategy;
         this.diskCache = diskCache;
         this.width = width;
@@ -67,6 +73,13 @@ public class DecodeJob  implements Runnable, Prioritized {
         this.priority = priority;
         this.bitmapPool = bitmapPool;
         this.callback = callback;
+        this.customInterceptor = customInterceptor;
+        this.customMemoryCache = customMemoryCache;
+        this.customDiskCache = customDiskCache;
+        this.customNetWork = customNetWork;
+        if(customHandler!=null){
+            handlers.addAll(customHandler);
+        }
         handlers.add(new AssetRequestHandler(context));
         handlers.add(new ContactsPhotoRequestHandler(context));
         handlers.add(new NetworkRequestHandler());
@@ -83,9 +96,27 @@ public class DecodeJob  implements Runnable, Prioritized {
         if(isCancelled){
             return;
         }
-        interceptors.add(new MemoryCacheInterceptor(engine,bitmapPool));
-        interceptors.add(new DiskCacheInterceptor(diskCache,bitmapPool));
-        interceptors.add(new StreamInterceptor(getHandler(request)));
+        if(customInterceptor!=null){
+            interceptors.addAll(customInterceptor);
+        }
+        if(customMemoryCache!=null){
+            interceptors.add(customMemoryCache);
+        }else {
+            interceptors.add(new MemoryCacheInterceptor(engine,bitmapPool));
+        }
+
+        if(customDiskCache != null){
+            interceptors.add(customDiskCache);
+        }else {
+            interceptors.add(new DiskCacheInterceptor(diskCache,bitmapPool));
+        }
+
+        if(customNetWork != null){
+            interceptors.add(customNetWork);
+        }else {
+            interceptors.add(new StreamInterceptor(getHandler(request)));
+        }
+
         interceptors.add(new DecodeInterceptor(bitmapPool));
         interceptors.add(new BitmapTransformInterceptor());
 

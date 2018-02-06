@@ -28,6 +28,7 @@ public class TNLoader {
     private final Handler mainHandler;
 
 
+
     public static TNLoader get(Context context) {
         if (loader == null) {
             synchronized (TNLoader.class) {

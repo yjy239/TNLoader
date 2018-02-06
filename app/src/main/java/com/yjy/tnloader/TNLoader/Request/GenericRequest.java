@@ -9,6 +9,8 @@ import android.util.Log;
 
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
 import com.yjy.tnloader.TNLoader.Engine.Engine;
+import com.yjy.tnloader.TNLoader.Engine.Interceptor;
+import com.yjy.tnloader.TNLoader.Engine.RequestHandler.RequestHandler;
 import com.yjy.tnloader.TNLoader.Resource.DecodeFormat;
 import com.yjy.tnloader.TNLoader.Resource.EmptySignature;
 import com.yjy.tnloader.TNLoader.Resource.Key;
@@ -17,6 +19,8 @@ import com.yjy.tnloader.TNLoader.Resource.Resource;
 import com.yjy.tnloader.TNLoader.Utils.Util;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 
 /**
@@ -53,20 +57,27 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
     private Handler MAIN_HANDLER  = new Handler(Looper.getMainLooper(),new MainThreadCallback());
     private InputStream in;
     private Context mContext;
-
+    private Interceptor customMemoryCache;
+    private Interceptor customDiskCache;
+    private Interceptor customNetWork;
+    private List<Interceptor> customInterceptor = new ArrayList<>();
+    private List<RequestHandler> customHandler = new ArrayList<>();
 
 
 
     public static GenericRequest obtain(Context mContext,String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,Drawable errorDrawable,float sizeMultiplier,
                                         int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,
-                                        DiskCacheStrategy diskCacheStrategy,Priority priority,DecodeFormat format){
+                                        DiskCacheStrategy diskCacheStrategy,Priority priority,DecodeFormat format,Interceptor customMemoryCache,
+                                        Interceptor customDiskCache,Interceptor customNetWork,List<Interceptor> customInterceptor,
+                                        List<RequestHandler> customHandler){
         GenericRequest request =  REQUEST_POOL.poll();
         if(request == null){
             request = new GenericRequest();
         }
 
         request.init(mContext,url,target,placeholderResourceId,placeholderDrawable,errorResourceId,errorDrawable,sizeMultiplier,
-        overrideWidth,overrideHeight,engine,isMemoryCacheable,diskCacheStrategy,priority,format);
+        overrideWidth,overrideHeight,engine,isMemoryCacheable,diskCacheStrategy,priority,format,customMemoryCache,
+                customDiskCache,customNetWork,customInterceptor,customHandler);
         return request;
 
     }
@@ -100,7 +111,9 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
 
     public void init(Context mContext,String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,Drawable errorDrawable,float sizeMultiplier,
                      int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,DiskCacheStrategy diskCacheStrategy,Priority priority,
-                     DecodeFormat format){
+                     DecodeFormat format,Interceptor customMemoryCache,
+                     Interceptor customDiskCache,Interceptor customNetWork,List<Interceptor> customInterceptor,
+                     List<RequestHandler> customHandler){
         this.placeholderResourceId = placeholderResourceId;
         this.errorResourceId = errorResourceId;
         this.sizeMultiplier = sizeMultiplier;
@@ -117,6 +130,11 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
         this.mContext = mContext;
         this.errorDrawable = errorDrawable;
         this.key = new RequestKey(url,signature,overrideWidth,overrideHeight);
+        this.customMemoryCache = customMemoryCache;
+        this.customDiskCache = customDiskCache;
+        this.customNetWork = customNetWork;
+        this.customInterceptor = customInterceptor;
+        this.customHandler = customHandler;
 
         status = Status.PENDING;
     }
@@ -155,7 +173,8 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
         width = Math.round(sizeMultiplier * width);
         height = Math.round(sizeMultiplier * height);
         //拦截器启动
-        engine.load(width, height, diskCacheStrategy,this,priority,this);
+        engine.load(width, height, diskCacheStrategy,this,priority,this,customMemoryCache,customDiskCache
+                ,customNetWork,customInterceptor,customHandler);
 
     }
 
@@ -223,7 +242,7 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
 
     @Override
     public void onException(Exception e) {
-        MAIN_HANDLER.obtainMessage(MSG_EXCEPTION,resource).sendToTarget();
+        MAIN_HANDLER.obtainMessage(MSG_EXCEPTION,e).sendToTarget();
     }
 
     private void setErrorPlaceholder(Exception e) {
@@ -342,6 +361,7 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
                     }
                 } else {
                     status = Status.FAILED;
+                    setErrorPlaceholder((Exception) message.obj);
 
                 }
                 return true;
@@ -366,6 +386,18 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
         resource = null;
         isMemoryCacheable = false;
         key = null;
+        this.customMemoryCache = null;
+        this.customDiskCache = null;
+        this.customNetWork = null;
+        this.customInterceptor = null;
+        this.customHandler = null;
+        this.diskCacheStrategy = DiskCacheStrategy.RESULT;
+        this.url = null;
+        this.priority = Priority.NORMAL;
+        this.format = DecodeFormat.DEFAULT;
+        this.mContext = null;
+        this.errorDrawable = null;
+        this.key = null;
 
         REQUEST_POOL.offer(this);
     }

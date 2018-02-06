@@ -11,6 +11,7 @@ import com.yjy.tnloader.TNLoader.Cache.BitmapPool.BitmapPool;
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCache;
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
 import com.yjy.tnloader.TNLoader.Cache.MemoryCache;
+import com.yjy.tnloader.TNLoader.Engine.RequestHandler.RequestHandler;
 import com.yjy.tnloader.TNLoader.Engine.interceptor.BitmapTransformInterceptor;
 import com.yjy.tnloader.TNLoader.Engine.interceptor.DecodeInterceptor;
 import com.yjy.tnloader.TNLoader.Engine.interceptor.DiskCacheInterceptor;
@@ -79,10 +80,14 @@ public class Engine implements MemoryCacheCallBack,RequestResource.ResourceListe
         }
     }
 
-    public void load(int width, int height, DiskCacheStrategy diskCacheStrategy, Request request, Priority priority, ResourceCallback callback) {
+    public void load(int width, int height, DiskCacheStrategy diskCacheStrategy, Request request
+            , Priority priority, ResourceCallback callback,Interceptor customMemoryCache,
+                     Interceptor customDiskCache,Interceptor customNetWork,List<Interceptor> customInterceptor,
+                     List<RequestHandler> customHandler) {
 
         DiskCache diskCache = diskCacheFactory.build();
-        DecodeJob decodeJob = new DecodeJob(context,this,diskCache,diskCacheStrategy,width,height,request,interceptors,priority,bitmapPool,callback);
+        DecodeJob decodeJob = new DecodeJob(context,this,diskCache,diskCacheStrategy,width,height,request,interceptors,priority,bitmapPool,callback,
+                customMemoryCache,customDiskCache,customNetWork,customInterceptor,customHandler);
         sourceService.submit(decodeJob);
 
     }

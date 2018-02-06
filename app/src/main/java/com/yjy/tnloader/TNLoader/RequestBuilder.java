@@ -5,6 +5,8 @@ import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
 import com.yjy.tnloader.TNLoader.Cache.DisCache.DiskCacheStrategy;
+import com.yjy.tnloader.TNLoader.Engine.Interceptor;
+import com.yjy.tnloader.TNLoader.Engine.RequestHandler.RequestHandler;
 import com.yjy.tnloader.TNLoader.Request.GenericRequest;
 import com.yjy.tnloader.TNLoader.Request.ImageViewTarget;
 import com.yjy.tnloader.TNLoader.Request.Priority;
@@ -13,6 +15,9 @@ import com.yjy.tnloader.TNLoader.Request.Target;
 import com.yjy.tnloader.TNLoader.Resource.DecodeFormat;
 import com.yjy.tnloader.TNLoader.manager.Lifecycle;
 import com.yjy.tnloader.TNLoader.manager.RequestTracker;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by software1 on 2018/1/31.
@@ -36,6 +41,11 @@ public class RequestBuilder {
     private int overrideWidth = Integer.MAX_VALUE;
     private int overrideHeight = Integer.MAX_VALUE;
     private Context mContext;
+    private Interceptor customMemoryCache;
+    private Interceptor customDiskCache;
+    private Interceptor customNetWork;
+    private List<Interceptor> customInterceptor = new ArrayList<>();
+    private List<RequestHandler> customHandler = new ArrayList<>();
 
 
 
@@ -50,7 +60,8 @@ public class RequestBuilder {
     public GenericRequest build(Target target){
 
         return GenericRequest.obtain(mContext,mUrl,target,placeholderResourceId,placeholderDrawable,errorResourceId,errorPlaceholder,sizeMultiplier,
-                overrideWidth,overrideHeight,loader.getEngine(),isMemoryCacheable,diskCacheStrategy,priority,decodeFormat);
+                overrideWidth,overrideHeight,loader.getEngine(),isMemoryCacheable,diskCacheStrategy,priority,decodeFormat,customMemoryCache,
+                customDiskCache,customNetWork,customInterceptor,customHandler);
     }
 
 
@@ -143,6 +154,30 @@ public class RequestBuilder {
         return this;
     }
 
+    public RequestBuilder replaceMemoryInterceptor(Interceptor customMemoryCache){
+        this.customDiskCache = customMemoryCache;
+        return this;
+    }
+
+    public RequestBuilder replaceDiskMemoryInterceptor(Interceptor customDiskCache){
+        this.customDiskCache = customDiskCache;
+        return this;
+    }
+
+    public RequestBuilder replaceStreamInterceptor(Interceptor customNetWork){
+        this.customNetWork = customNetWork;
+        return this;
+    }
+
+    public RequestBuilder addInterceptor(List<Interceptor> interceptors){
+        this.customInterceptor = interceptors;
+        return this;
+    }
+
+    public RequestBuilder addRequestHandler(List<RequestHandler> handlers){
+        this.customHandler = handlers;
+        return this;
+    }
 
     public Target into(ImageView view){
 
