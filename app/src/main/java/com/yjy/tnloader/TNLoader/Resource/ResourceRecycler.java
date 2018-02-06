@@ -15,7 +15,6 @@ public class ResourceRecycler {
     private final Handler handler = new Handler(Looper.getMainLooper(), new ResourceRecyclerCallback());
 
     public void recycle(Resource<?> resource) {
-        Util.assertMainThread();
 
         if (isRecycling) {
             // If a resource has sub-resources, releasing a sub resource can cause it's parent to be synchronously

@@ -11,18 +11,20 @@ import java.io.InputStream;
 
 public class Response {
     private Request request;
-    private int id;
 
     private InputStream inputStream;
     private Response.Builder builder;
     private Resource<?> result;
     private ImageHeaderParser.ImageType imageType;
+    private Exception e;
+
 
     public Response(Response.Builder builder){
         this.builder = builder;
         this.request = builder.request;
         this.inputStream = builder.inputStream;
         this.result = builder.result;
+        this.e = builder.e;
     }
 
     public void setRequest(Request request){
@@ -31,13 +33,6 @@ public class Response {
 
     public Request getRequest(){
         return request;
-    }
-    public void setId(int id){
-        this.id = id;
-    }
-
-    public int getId(){
-        return id;
     }
 
     public InputStream getInputStream() {
@@ -56,10 +51,20 @@ public class Response {
         this.imageType = type;
     }
 
+    public Exception getException(){
+        return e;
+    }
+
     public void clear(){
         builder = null;
         request = null;
-        inputStream = null;
+        try {
+            inputStream.close();
+            inputStream = null;
+        }catch (Exception e){
+
+        }
+        imageType = ImageHeaderParser.ImageType.UNKNOWN;
     }
 
 
@@ -73,6 +78,7 @@ public class Response {
         private InputStream inputStream;
         private Resource<?> result;
         private ImageHeaderParser.ImageType imageType;
+        private Exception e;
 
         public Builder(){
 
@@ -99,6 +105,11 @@ public class Response {
 
         public Builder setType(ImageHeaderParser.ImageType imageType){
             this.imageType = imageType;
+            return this;
+        }
+
+        public Builder Exception(Exception e){
+            this.e = e;
             return this;
         }
 

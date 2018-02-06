@@ -25,6 +25,7 @@ import com.yjy.tnloader.TNLoader.Resource.RequestResource;
 import com.yjy.tnloader.TNLoader.Resource.Key;
 import com.yjy.tnloader.TNLoader.Resource.Resource;
 import com.yjy.tnloader.TNLoader.Resource.ResourceRecycler;
+import com.yjy.tnloader.TNLoader.Utils.Util;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -38,7 +39,7 @@ import java.util.concurrent.ExecutorService;
  * Created by software1 on 2018/1/30.
  */
 
-public class Engine implements MemoryCacheCallBack{
+public class Engine implements MemoryCacheCallBack,RequestResource.ResourceListener{
     private final String TAG="Engine";
     private Dispatcher dispatcher;
     private MemoryCache memoryCache;
@@ -53,6 +54,7 @@ public class Engine implements MemoryCacheCallBack{
     private Context context;
     private volatile int working = 0;
     private BitmapPool bitmapPool;
+
 
 
     public Engine(Context context, Dispatcher dispatcher, MemoryCache memoryCache, DiskCache.Factory diskCacheFactory,
@@ -97,6 +99,7 @@ public class Engine implements MemoryCacheCallBack{
         }
 
         RequestResource<?> cached = getEngineResourceFromCache(key);
+
         if (cached != null) {
             cached.acquire();
             activeResources.put(key, new ResourceWeakReference(key, cached, getReferenceQueue()));
@@ -123,9 +126,11 @@ public class Engine implements MemoryCacheCallBack{
 
     private ReferenceQueue<RequestResource<?>> getReferenceQueue() {
         if (resourceReferenceQueue == null) {
+            Looper.prepare();
             resourceReferenceQueue = new ReferenceQueue<RequestResource<?>>();
             MessageQueue queue = Looper.myQueue();
             queue.addIdleHandler(new RefQueueIdleHandler(activeResources, resourceReferenceQueue));
+//            Looper.loop();
         }
         return resourceReferenceQueue;
     }
@@ -157,6 +162,53 @@ public class Engine implements MemoryCacheCallBack{
         working--;
         notifyAll();
         return active;
+    }
+
+    @Override
+    public synchronized void complete(Key key, RequestResource resource) {
+        try {
+            while (working>0){
+                wait();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        working++;
+
+        if (resource != null) {
+            resource.setResourceListener(key, this);
+
+            if (resource.isCacheable()) {
+                activeResources.put(key, new ResourceWeakReference(key, resource, getReferenceQueue()));
+            }
+        }
+        notifyAll();
+        working--;
+
+    }
+
+    @Override
+    public void cancelled(Key key) {
+
+    }
+
+    public void release(Resource resource) {
+        Util.assertMainThread();
+        if (resource instanceof RequestResource) {
+            ((RequestResource) resource).release();
+        } else {
+            throw new IllegalArgumentException("Cannot release anything but an EngineResource");
+        }
+    }
+
+    @Override
+    public void onResourceReleased(Key cacheKey, RequestResource<?> resource) {
+        activeResources.remove(cacheKey);
+        if (resource.isCacheable()) {
+            memoryCache.put(cacheKey, resource);
+        } else {
+            recycler.recycle(resource);
+        }
     }
 
 

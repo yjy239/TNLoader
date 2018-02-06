@@ -15,7 +15,7 @@ public class BitmapTransformInterceptor implements Interceptor {
 
 
     @Override
-    public Response intercept(Chain chain){
+    public Response intercept(Chain chain) throws Exception{
         Log.e(TAG,"图片转化");
         Request request = chain.request();
 

@@ -31,8 +31,6 @@ public interface Request {
 
     /**是否存在key对应的磁盘缓存*/
     boolean hasKeyResource();
-
-
     void setKeyResource(boolean hasKey);
 
     String url();

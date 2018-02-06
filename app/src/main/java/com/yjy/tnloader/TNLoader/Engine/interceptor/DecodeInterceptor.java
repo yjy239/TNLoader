@@ -28,7 +28,7 @@ public class DecodeInterceptor implements Interceptor {
     }
 
     @Override
-    public Response intercept(Chain chain)  {
+    public Response intercept(Chain chain) throws Exception{
         Log.e(TAG,"数据流解码");
         Response response = null;
         Request request = chain.request();
@@ -40,6 +40,7 @@ public class DecodeInterceptor implements Interceptor {
             try {
                 bitmap = decoder.decode(in,pool,request.getWidth(),request.getHeight(), request.getFormat());
             }catch (Exception e){
+                response = new Response.Builder().Exception(e).build();
                 e.printStackTrace();
             }
             //拿到bitmap之后转化

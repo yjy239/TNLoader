@@ -30,35 +30,51 @@ public class MemoryCacheInterceptor implements Interceptor {
     }
 
     @Override
-    public Response intercept(Chain chain)  {
-        Log.e(TAG,"内存缓存");
+    public Response intercept(Chain chain) throws Exception {
+
         Response r=null;
         Request request = chain.request();
         //判断缓存是否存在
         RequestResource<?> cached = engine.loadFromCache(request.key(),request.isMemoryCache());
         if(cached != null){
+            r = new Response.Builder().request(request).result(cached).build();
             request.onResourceReady(cached);
         }
-
 
         //获取活跃的资源是否存在
         RequestResource<?> active = engine.loadFromActiveResources(request.key(),request.isMemoryCache());
         if (active != null) {
+            r = new Response.Builder().request(request).result(active).build();
             request.onResourceReady(active);
         }
         //两者不存在进入下一个拦截器，并且加入到缓存中
         if(cached == null && active == null){
             r = chain.proceed(request);
-
+            //拿到了response判断里面是否存在resource
             Resource<?> resource = r.getResult();
-            if(resource instanceof BitmapResource){
-                BitmapResource bitmapResource = (BitmapResource) resource;
-                BitmapDrawable drawable = new BitmapDrawable(bitmapResource.get());
-                BitmapDrawableResource drawableResource = new BitmapDrawableResource(drawable,bitmapPool);
-                request.setResource(drawableResource);
+            BitmapDrawableResource drawableResource = null;
+            if(resource != null){
+                if(resource instanceof BitmapResource){
+                    BitmapResource bitmapResource = (BitmapResource) resource;
+                    BitmapDrawable drawable = new BitmapDrawable(bitmapResource.get());
+                    drawableResource = new BitmapDrawableResource(drawable,bitmapPool);
+                    request.setResource(drawableResource);
+                    r = new Response.Builder().request(request).result(drawableResource).build();
+                }
+                if(r == null){
+                    Log.e(TAG,"null2");
+                }
+                //再挂载到内存当中
+                if(drawableResource != null){
+                    RequestResource requestResource = new RequestResource(drawableResource,request.isMemoryCache());
+                    requestResource.acquire();
+                    engine.complete(request.key(),requestResource);
+                    requestResource.release();
+                }
             }
+        }else {
+            Log.e(TAG,"内存缓存");
         }
-
 
         //组成response返回
 //       r = new Response.Builder().request(request).build();

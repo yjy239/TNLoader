@@ -20,7 +20,7 @@ public class RequestResource<Z> implements Resource<Z> {
     private int acquired;
     private boolean isRecycled;
 
-    interface ResourceListener {
+    public interface ResourceListener {
         void onResourceReleased(Key key, RequestResource<?> resource);
     }
 
@@ -32,12 +32,12 @@ public class RequestResource<Z> implements Resource<Z> {
         this.isCacheable = isCacheable;
     }
 
-    void setResourceListener(Key key, ResourceListener listener) {
+    public void setResourceListener(Key key, ResourceListener listener) {
         this.key = key;
         this.listener = listener;
     }
 
-    boolean isCacheable() {
+    public boolean isCacheable() {
         return isCacheable;
     }
 
@@ -76,9 +76,6 @@ public class RequestResource<Z> implements Resource<Z> {
         if (isRecycled) {
             throw new IllegalStateException("Cannot acquire a recycled resource");
         }
-        if (!Looper.getMainLooper().equals(Looper.myLooper())) {
-            throw new IllegalThreadStateException("Must call acquire on the main thread");
-        }
         ++acquired;
     }
 
@@ -94,9 +91,6 @@ public class RequestResource<Z> implements Resource<Z> {
     public void release() {
         if (acquired <= 0) {
             throw new IllegalStateException("Cannot release a recycled or not yet acquired resource");
-        }
-        if (!Looper.getMainLooper().equals(Looper.myLooper())) {
-            throw new IllegalThreadStateException("Must call release on the main thread");
         }
         if (--acquired == 0) {
             listener.onResourceReleased(key, this);

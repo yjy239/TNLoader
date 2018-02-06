@@ -44,10 +44,15 @@ public class RealInterceptorChain implements Interceptor.Chain {
         if(interrupt||interceptors.size()<=index){
             return response;
         }
-            RealInterceptorChain next = new RealInterceptorChain(interceptors,index+1,response);
-            Interceptor interceptor = interceptors.get(index);
-            Response response = interceptor.intercept(next);
-            Log.e("response",interceptor.getClass()+" index:"+index);
+        RealInterceptorChain next = new RealInterceptorChain(interceptors,index+1,response);
+        Interceptor interceptor = interceptors.get(index);
+        try {
+            response = interceptor.intercept(next);
+        }catch (Exception e){
+            response = new Response.Builder().Exception(e).build();
+            e.printStackTrace();
+        }
+
 
         return response;
     }

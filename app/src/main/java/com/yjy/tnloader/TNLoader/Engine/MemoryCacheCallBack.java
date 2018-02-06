@@ -9,7 +9,16 @@ import com.yjy.tnloader.TNLoader.Resource.Key;
 
 public interface MemoryCacheCallBack {
 
+    /***存入内存**/
     RequestResource<?> loadFromCache(Key key, boolean isMemoryCacheable);
 
+    /**存入活跃内存*/
     RequestResource<?> loadFromActiveResources(Key key, boolean isMemoryCacheable);
+
+    /***任务完成**/
+    void complete(Key key,RequestResource resource);
+
+    /***任务取消**/
+    void cancelled(Key key);
+
 }

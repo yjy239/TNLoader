@@ -20,7 +20,7 @@ public class StreamInterceptor implements Interceptor {
     }
 
     @Override
-    public Response intercept(Chain chain) {
+    public Response intercept(Chain chain)throws Exception {
         Log.e(TAG,"数据解析，获取流");
         Request request = chain.request();
         Response response = null;
@@ -31,6 +31,7 @@ public class StreamInterceptor implements Interceptor {
                 Log.e(TAG,"没有处理对象");
             }
         }catch (Exception e){
+            response = new Response.Builder().Exception(e).build();
             e.printStackTrace();
         }
 

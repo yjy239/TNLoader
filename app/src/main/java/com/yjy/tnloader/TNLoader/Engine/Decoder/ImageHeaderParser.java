@@ -81,10 +81,11 @@ public class ImageHeaderParser {
   |      'W'      |      'E'      |      'B'      |      'P'      |
   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
-    private static final int WEBP_FILE_HEADER_SIZE = 0x0A;
+    private static final int WEBP_FILE_HEADER_SIZE = 12;
     private static final String WEBP_FILE_HEADER_RIFF = "RIFF";
     private static final String WEBP_FILE_HEADER_WEBP = "WEBP";
 
+    private InputStream in;
     static {
         byte[] bytes = new byte[0];
         try {
@@ -96,7 +97,9 @@ public class ImageHeaderParser {
     }
 
     public ImageHeaderParser(InputStream is) {
+        this.in = is;
         streamReader = new StreamReader(is);
+
     }
 
     // 0xD0A3C68 -> <htm
@@ -107,28 +110,30 @@ public class ImageHeaderParser {
 
     public ImageType getType() throws IOException {
 
+        //头2个字节
         int firstTwoBytes = streamReader.getUInt16();
 
         //webP 先取出头12位,比较头4位和后4位
-        if((firstTwoBytes & 0x0FFF) == WEBP_FILE_HEADER_SIZE){
-            boolean isWebPFile = false;
-            byte[] bytes = new byte[]{
-                    (byte)(firstTwoBytes >> 8 & 0xFF),
-                    (byte)(firstTwoBytes & 0xFF)
-            };
-
-            isWebPFile = WEBP_FILE_HEADER_RIFF.equals(new String(bytes, 0, 4, "US-ASCII"))
-                    && WEBP_FILE_HEADER_WEBP.equals(new String(bytes, 8, 4, "US-ASCII"));
-            if(isWebPFile){
-                return WEBP;
-            }
-        }
+//        if((firstTwoBytes & 0x0FFF) == WEBP_FILE_HEADER_SIZE){
+//            boolean isWebPFile = false;
+//            byte[] bytes = new byte[]{
+//                    (byte)(firstTwoBytes >> 8 & 0xFF),
+//                    (byte)(firstTwoBytes & 0xFF)
+//            };
+//
+//            isWebPFile = WEBP_FILE_HEADER_RIFF.equals(new String(bytes, 0, 4, "US-ASCII"))
+//                    && WEBP_FILE_HEADER_WEBP.equals(new String(bytes, 8, 4, "US-ASCII"));
+//            if(isWebPFile){
+//                return WEBP;
+//            }
+//        }
 
         // JPEG.
         if (firstTwoBytes == EXIF_MAGIC_NUMBER) {
             return JPEG;
         }
 
+        //头4个字节
         final int firstFourBytes = firstTwoBytes << 16 & 0xFFFF0000 | streamReader.getUInt16() & 0xFFFF;
         // PNG.
         if (firstFourBytes == PNG_HEADER) {
@@ -143,6 +148,24 @@ public class ImageHeaderParser {
         if (firstFourBytes >> 8 == GIF_HEADER) {
             return GIF;
         }
+
+        streamReader.reset();
+
+        byte[] fileHeaderBytes = new byte[WEBP_FILE_HEADER_SIZE];
+        boolean isWebPFile = false;
+        int i = in.read(fileHeaderBytes, 0, WEBP_FILE_HEADER_SIZE);
+        if (i == WEBP_FILE_HEADER_SIZE) {
+            // If a file's header starts with RIFF and end with WEBP, the file is a WebP file
+            String riff = new String(fileHeaderBytes, 0, 4, "US-ASCII");
+            String wbp = new String(fileHeaderBytes, 8, 4, "US-ASCII");
+            isWebPFile = WEBP_FILE_HEADER_RIFF.equals(new String(fileHeaderBytes, 0, 4, "US-ASCII"))
+                    && WEBP_FILE_HEADER_WEBP.equals(new String(fileHeaderBytes, 8, 4, "US-ASCII"));
+        }
+        if(isWebPFile){
+            return WEBP;
+        }
+
+
 
         return UNKNOWN;
     }
@@ -235,6 +258,18 @@ public class ImageHeaderParser {
                 }
             }
         }
+    }
+
+    static boolean isWebPFile(InputStream stream) throws IOException {
+        byte[] fileHeaderBytes = new byte[WEBP_FILE_HEADER_SIZE];
+        boolean isWebPFile = false;
+        int i = stream.read(fileHeaderBytes, 0, WEBP_FILE_HEADER_SIZE);
+        if (i == WEBP_FILE_HEADER_SIZE) {
+            // If a file's header starts with RIFF and end with WEBP, the file is a WebP file
+            isWebPFile = WEBP_FILE_HEADER_RIFF.equals(new String(fileHeaderBytes, 0, 4, "US-ASCII"))
+                    && WEBP_FILE_HEADER_WEBP.equals(new String(fileHeaderBytes, 8, 4, "US-ASCII"));
+        }
+        return isWebPFile;
     }
 
     private static int parseExifSegment(RandomAccessReader segmentData) {

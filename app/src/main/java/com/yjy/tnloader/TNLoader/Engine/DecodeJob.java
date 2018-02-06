@@ -83,9 +83,8 @@ public class DecodeJob  implements Runnable, Prioritized {
         if(isCancelled){
             return;
         }
-
         interceptors.add(new MemoryCacheInterceptor(engine,bitmapPool));
-        interceptors.add(new DiskCacheInterceptor(diskCache));
+        interceptors.add(new DiskCacheInterceptor(diskCache,bitmapPool));
         interceptors.add(new StreamInterceptor(getHandler(request)));
         interceptors.add(new DecodeInterceptor(bitmapPool));
         interceptors.add(new BitmapTransformInterceptor());
@@ -94,6 +93,7 @@ public class DecodeJob  implements Runnable, Prioritized {
         Response response = new Response.Builder().request(request).build();
         RealInterceptorChain chain = new RealInterceptorChain(interceptors,index,response);
         Response result = chain.proceed(request);
+
         Resource<?> resource = result.getResult();
 
         //repsonse就有了bitmap,这个时候，回调设置
@@ -104,11 +104,18 @@ public class DecodeJob  implements Runnable, Prioritized {
             return;
         }
 
-        if(result == null){
-            onLoadFail();
+        //
+        if(result!= null){
+            if(resource == null){
+                onLoadFail(result.getException());
+            }else {
+                onLoadSuccess(resource);
+            }
         }else {
-            onLoadSuccess(resource);
+            onLoadFail(null);
         }
+        response.clear();
+        result.clear();
 
     }
 
@@ -116,9 +123,9 @@ public class DecodeJob  implements Runnable, Prioritized {
         callback.onResourceReady(resource);
     }
 
-    private void onLoadFail() {
-
-
+    private void onLoadFail(Exception e) {
+        Log.i(TAG,"无效地址");
+        callback.onException(e);
     }
 
     private RequestHandler getHandler(Request request){

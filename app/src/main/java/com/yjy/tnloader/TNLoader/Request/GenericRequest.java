@@ -1,5 +1,6 @@
 package com.yjy.tnloader.TNLoader.Request;
 
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,6 +36,7 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
     private Status status;
     private Target target;
     private Drawable placeholderDrawable;
+    private Drawable errorDrawable;
 
     private Engine engine;
     private boolean isMemoryCacheable;
@@ -50,11 +52,12 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
     private static final int MSG_EXCEPTION = 2;
     private Handler MAIN_HANDLER  = new Handler(Looper.getMainLooper(),new MainThreadCallback());
     private InputStream in;
+    private Context mContext;
 
 
 
 
-    public static GenericRequest obtain(String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,float sizeMultiplier,
+    public static GenericRequest obtain(Context mContext,String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,Drawable errorDrawable,float sizeMultiplier,
                                         int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,
                                         DiskCacheStrategy diskCacheStrategy,Priority priority,DecodeFormat format){
         GenericRequest request =  REQUEST_POOL.poll();
@@ -62,13 +65,16 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
             request = new GenericRequest();
         }
 
-        request.init(url,target,placeholderResourceId,placeholderDrawable,errorResourceId,sizeMultiplier,
+        request.init(mContext,url,target,placeholderResourceId,placeholderDrawable,errorResourceId,errorDrawable,sizeMultiplier,
         overrideWidth,overrideHeight,engine,isMemoryCacheable,diskCacheStrategy,priority,format);
         return request;
 
     }
 
     public Drawable getPlaceholderDrawable() {
+        if (placeholderDrawable == null && placeholderResourceId > 0) {
+            placeholderDrawable = mContext.getResources().getDrawable(placeholderResourceId);
+        }
         return placeholderDrawable;
     }
 
@@ -92,7 +98,7 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
         PAUSED,
     }
 
-    public void init(String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,float sizeMultiplier,
+    public void init(Context mContext,String url,Target target,int placeholderResourceId,Drawable placeholderDrawable,int errorResourceId,Drawable errorDrawable,float sizeMultiplier,
                      int overrideWidth,int overrideHeight,Engine engine,boolean isMemoryCacheable,DiskCacheStrategy diskCacheStrategy,Priority priority,
                      DecodeFormat format){
         this.placeholderResourceId = placeholderResourceId;
@@ -108,6 +114,8 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
         this.url = url;
         this.priority = priority;
         this.format = format;
+        this.mContext = mContext;
+        this.errorDrawable = errorDrawable;
         this.key = new RequestKey(url,signature,overrideWidth,overrideHeight);
 
         status = Status.PENDING;
@@ -215,7 +223,26 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
 
     @Override
     public void onException(Exception e) {
+        MAIN_HANDLER.obtainMessage(MSG_EXCEPTION,resource).sendToTarget();
+    }
 
+    private void setErrorPlaceholder(Exception e) {
+
+        Drawable error = getErrorDrawable();
+//        if (error == null) {
+//            error = getErrorDrawable();
+//        }
+        if (error == null) {
+            error = getPlaceholderDrawable();
+        }
+        target.onLoadFailed(e, error);
+    }
+
+    private Drawable getErrorDrawable() {
+        if (errorDrawable == null && errorResourceId > 0) {
+            errorDrawable = mContext.getResources().getDrawable(errorResourceId);
+        }
+        return errorDrawable;
     }
 
 
@@ -228,52 +255,76 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
     }
 
 
-
-
     @Override
     public void pause() {
+        clear();
+        status = Status.PAUSED;
 
     }
 
     @Override
     public void clear() {
+        Util.assertMainThread();
+        if (status == Status.CLEARED) {
+            return;
+        }
+        cancel();
+        // Resource must be released before canNotifyStatusChanged is called.
+        if (resource != null) {
+            releaseResource(resource);
+        }
 
+        target.onLoadCleared(getPlaceholderDrawable());
+
+        // Must be after cancel().
+        status = Status.CLEARED;
+
+    }
+
+    private void cancel() {
+        status = Status.CANCELLED;
+    }
+
+    private void releaseResource(Resource<?> resource) {
+        engine.release(resource);
+        this.resource = null;
     }
 
     @Override
     public boolean isPaused() {
-        return false;
+        return status == Status.PAUSED;
     }
 
     @Override
     public boolean isRunning() {
-        return false;
+        return status == Status.RUNNING || status == Status.WAITING_FOR_SIZE;
     }
 
     @Override
     public boolean isComplete() {
-        return false;
+        return status == Status.COMPLETE;
     }
 
     @Override
     public boolean isResourceSet() {
-        return false;
+        return isComplete();
     }
 
     @Override
     public boolean isCancelled() {
-        return false;
+        return status == Status.CANCELLED || status == Status.CLEARED;
     }
 
     @Override
     public boolean isFailed() {
-        return false;
+        return status == Status.FAILED;
     }
 
     @Override
     public boolean isMemoryCache() {
         return isMemoryCacheable;
     }
+
 
     private class MainThreadCallback implements Handler.Callback {
 
@@ -290,6 +341,7 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
                         onResourceReady(resource, (R) received);
                     }
                 } else {
+                    status = Status.FAILED;
 
                 }
                 return true;
@@ -303,6 +355,13 @@ public class GenericRequest<R> implements Request,SizeReadyCallback,ResourceCall
     public void recycle() {
         this.target = null;
         this.placeholderDrawable = null;
+        if(in != null){
+            try {
+                in.close();
+            }catch (Exception e){
+
+            }
+        }
         in = null;
         resource = null;
         isMemoryCacheable = false;

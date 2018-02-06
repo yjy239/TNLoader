@@ -1,5 +1,6 @@
 package com.yjy.tnloader.TNLoader;
 
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.widget.ImageView;
 
@@ -34,19 +35,21 @@ public class RequestBuilder {
     private DecodeFormat decodeFormat;
     private int overrideWidth = Integer.MAX_VALUE;
     private int overrideHeight = Integer.MAX_VALUE;
+    private Context mContext;
 
 
 
-    public RequestBuilder(TNLoader loader,String url, Lifecycle lifecycle, RequestTracker requestTracker){
+    public RequestBuilder(Context mContext,TNLoader loader,String url, Lifecycle lifecycle, RequestTracker requestTracker){
         mUrl = url;
         this.mLifecycle = lifecycle;
         this.requestTracker= requestTracker;
         this.loader = loader;
+        this.mContext = mContext;
     }
 
     public GenericRequest build(Target target){
 
-        return GenericRequest.obtain(mUrl,target,placeholderResourceId,placeholderDrawable,errorResourceId,sizeMultiplier,
+        return GenericRequest.obtain(mContext,mUrl,target,placeholderResourceId,placeholderDrawable,errorResourceId,errorPlaceholder,sizeMultiplier,
                 overrideWidth,overrideHeight,loader.getEngine(),isMemoryCacheable,diskCacheStrategy,priority,decodeFormat);
     }
 
@@ -108,6 +111,38 @@ public class RequestBuilder {
         this.decodeFormat = format;
         return this;
     }
+
+    public RequestBuilder memoryCache(boolean isMemoryCacheable){
+        this.isMemoryCacheable = isMemoryCacheable;
+        return this;
+    }
+
+    public RequestBuilder sizeMultiplier(float sizeMultiplier){
+        this.sizeMultiplier = sizeMultiplier;
+        return this;
+    }
+
+    //图片获取线程优先度
+    public RequestBuilder priority(Priority priority){
+        this.priority = priority;
+        return this;
+    }
+
+    public RequestBuilder diskCacheStrategy(DiskCacheStrategy diskCacheStrategy){
+        this.diskCacheStrategy = diskCacheStrategy;
+        return this;
+    }
+
+    public RequestBuilder width(int overrideWidth){
+        this.overrideWidth = overrideWidth;
+        return this;
+    }
+
+    public RequestBuilder height(int overrideHeight){
+        this.overrideHeight = overrideHeight;
+        return this;
+    }
+
 
     public Target into(ImageView view){
 

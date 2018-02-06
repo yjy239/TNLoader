@@ -168,6 +168,8 @@ public abstract class LowMemoryDecoder implements BitmapDecoder<InputStream> {
 
 
 
+
+
     private int getRoundedSampleSize(int degreesToRotate, int inWidth, int inHeight, int outWidth, int outHeight) {
         int targetHeight = outHeight == Target.SIZE_ORIGINAL ? inHeight : outHeight;
         int targetWidth = outWidth == Target.SIZE_ORIGINAL ? inWidth : outWidth;

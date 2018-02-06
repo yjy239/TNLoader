@@ -8,7 +8,7 @@ import com.yjy.tnloader.TNLoader.Request.Request;
  */
 
 public interface Interceptor {
-    Response intercept(Chain chain);
+    Response intercept(Chain chain) throws Exception;
 
     interface Chain {
 
