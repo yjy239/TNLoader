@@ -8,6 +8,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
+import com.yjy.tnloader.TNLoader.Engine.RequestHandler.RequestHandler;
 import com.yjy.tnloader.TNLoader.TNLoader;
 
 import java.util.ArrayList;
@@ -23,10 +24,14 @@ public class ListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private List<String> list = new ArrayList<>();
     private Context mContext;
     private Handler handler = new Handler();
+    private OkhttpRequestHandler okhandler;
+    private List<RequestHandler> handlers = new ArrayList<>();
 
     public ListAdapter(Context mContext,List<String> list) {
         this.list = list;
         this.mContext = mContext;
+        OkhttpRequestHandler okhandler = new OkhttpRequestHandler();
+        handlers.add(okhandler);
     }
 
     @Override
@@ -37,10 +42,13 @@ public class ListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     @Override
     public void onBindViewHolder(final RecyclerView.ViewHolder holder, final int position) {
+
+
         if(position < list.size()-1){
             TNLoader.with(mContext)
                     .load(list.get(position))
                     .memoryCache(true)
+                    .addRequestHandler(handlers)
                     .into(((ListViewHolder)holder).iv);
 
         }else {
@@ -50,6 +58,7 @@ public class ListAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                     TNLoader.with(mContext)
                             .load(list.get(position))
                             .memoryCache(true)
+                            .addRequestHandler(handlers)
                             .into(((ListViewHolder)holder).iv);
                 }
             },6000);

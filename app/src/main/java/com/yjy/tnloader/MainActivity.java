@@ -30,6 +30,7 @@ public class MainActivity extends AppCompatActivity {
         test.add("http://img.taopic.com/uploads/allimg/120727/201995-120HG1030762.jpg");
         test.add("https://p.upyun.com/demo/webp/webp/gif-0.webp");
         test.add("http://img.taopic.com/uploads/allimg/120727/201995-120HG1030762.jpg");
+        test.add("http://res1.age06.com/FileStore/PortalIPSForQX/V3/d6cedf78-a699-4322-8d8b-af976fc94bc1/c3d432b8-290d-4a4c-9598-187342ae4d9d/c77ab157-e2d3-4c79-b92b-167e30b76d0c.jpg");
         LinearLayoutManager manager = new LinearLayoutManager(this);
         manager.setOrientation(LinearLayoutManager.VERTICAL);
         list.setLayoutManager(manager);

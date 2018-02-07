@@ -164,6 +164,7 @@ public class DecodeJob  implements Runnable, Prioritized {
         for (int i=0;i<handlers.size();i++){
             if(handlers.get(i).canHandleRequest(request)){
                 handler = handlers.get(i);
+                break;
             }
         }
         return handler;
