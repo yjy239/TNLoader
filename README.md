@@ -55,6 +55,9 @@ public RequestBuilder addRequestHandler(List<RequestHandler> handlers){
 
 在okhttpsupport文件夹中新增了对okhttp的支持，新增网络流获取器。
 
+##比起glide和picasso优势:
+对于TNLoader来说，各个核心组件都拆开，允许其自定义。Interceptor(拦截器)是对图片各个步骤进行了解耦,而requesthandler则是对输入的url进行自定义的规则解析。
+
 
 
 
